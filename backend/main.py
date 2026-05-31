@@ -36,9 +36,15 @@ origins = [
     "http://127.0.0.1:8081",
 ]
 
+import os
+env_origins = os.getenv("CORS_ORIGINS")
+if env_origins:
+    origins.extend([origin.strip() for origin in env_origins.split(",") if origin.strip()])
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
+    allow_origin_regex=r"https://.*\.vercel\.app",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

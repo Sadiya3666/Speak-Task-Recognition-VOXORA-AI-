@@ -7,3 +7,4 @@ pydantic==2.9.0
 pydantic-settings==2.6.1
 email-validator
 requests
+psycopg2-binary

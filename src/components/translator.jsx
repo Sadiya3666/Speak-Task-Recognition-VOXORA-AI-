@@ -125,7 +125,7 @@ const Translator = () => {
           const chunk = chunks[i];
           setTranslatedText(`Translating... (${Math.round(((i) / chunks.length) * 100)}%)`);
           
-          const response = await axios.post('http://localhost:8000/api/translate/', {
+          const response = await axios.post(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'}/api/translate/`, {
             text: chunk,
             to_lang: toLang,
             from_lang: sourceLang
@@ -141,7 +141,7 @@ const Translator = () => {
         setTranslatedText(result);
       } else {
         // For small texts, translate in one go
-        const response = await axios.post('http://localhost:8000/api/translate/', {
+        const response = await axios.post(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'}/api/translate/`, {
           text: inputText,
           to_lang: toLang,
           from_lang: sourceLang

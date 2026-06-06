@@ -8,12 +8,12 @@ from urllib.parse import quote
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/translate", tags=["translation"])
+router = APIRouter(tags=["translation"])
 
 class TranslationRequest(BaseModel):
     text: str
-    to_lang: str = 'en'  # Default to English
-    from_lang: str = 'auto'  # Auto-detect source language
+    target_lang: str = 'en'  # Default to English
+    source_lang: str = 'auto'  # Auto-detect source language
 
 def translate_chunk(text, from_lang, to_lang):
     """Helper function to translate a chunk of text using Google Translate"""
@@ -52,10 +52,10 @@ def translate_chunk(text, from_lang, to_lang):
             detail=f"Translation failed: {str(e)}"
         )
 
-@router.post("/")
+@router.post("/api/translate")
 async def translate_text(request: TranslationRequest):
     try:
-        logger.info(f"Received translation request. From: {request.from_lang}, To: {request.to_lang}, Text length: {len(request.text)}")
+        logger.info(f"Received translation request. From: {request.source_lang}, To: {request.target_lang}, Text length: {len(request.text)}")
         
         # Validate input length
         if not request.text or len(request.text.strip()) == 0:
@@ -73,7 +73,7 @@ async def translate_text(request: TranslationRequest):
         translated_chunks = []
         for i, chunk in enumerate(text_chunks):
             logger.info(f"Translating chunk {i+1}/{len(text_chunks)} (length: {len(chunk)})")
-            translated = translate_chunk(chunk, request.from_lang, request.to_lang)
+            translated = translate_chunk(chunk, request.source_lang, request.target_lang)
             translated_chunks.append(translated)
         
         # Combine translated chunks
@@ -82,8 +82,8 @@ async def translate_text(request: TranslationRequest):
         return {
             "original_text": request.text,
             "translated_text": translated_text,
-            "source_language": request.from_lang if request.from_lang != 'auto' else "auto-detected",
-            "destination_language": request.to_lang,
+            "source_language": request.source_lang if request.source_lang != 'auto' else "auto-detected",
+            "target_language": request.target_lang,
             "chunks_processed": len(text_chunks)
         }
         

@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Loader2, Copy, RefreshCw, X } from 'lucide-react';
+import { Loader2, Copy, RefreshCw, X, Volume2 } from 'lucide-react';
 import './translator.css';
+import { useTextToSpeech } from '@/hooks/useTextToSpeech';
 
 const languages = [
   { code: 'en', name: 'English' },
@@ -34,6 +35,16 @@ const Translator = () => {
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
   const [detectedLanguage, setDetectedLanguage] = useState('');
+  
+  const { speak, isSpeaking, stop } = useTextToSpeech();
+
+  const handleSpeak = () => {
+    if (isSpeaking) {
+      stop();
+    } else if (translatedText) {
+      speak(translatedText, toLang);
+    }
+  };
 
   // Auto-detect language if set to auto
   const detectLanguage = async (text) => {
@@ -290,15 +301,26 @@ const Translator = () => {
             rows={8}
           />
           {translatedText && (
-            <button 
-              className={`copy-btn ${copied ? 'copied' : ''}`} 
-              onClick={handleCopy}
-              title={copied ? 'Copied!' : 'Copy to clipboard'}
-              disabled={loading}
-              aria-label={copied ? 'Copied!' : 'Copy to clipboard'}
-            >
-              {copied ? '✓' : <Copy size={16} />}
-            </button>
+            <>
+              <button 
+                className={`speak-btn ${isSpeaking ? 'speaking' : ''}`} 
+                onClick={handleSpeak}
+                title={isSpeaking ? 'Stop speaking' : 'Listen to translation'}
+                disabled={loading}
+                aria-label={isSpeaking ? 'Stop speaking' : 'Listen to translation'}
+              >
+                <Volume2 size={16} />
+              </button>
+              <button 
+                className={`copy-btn ${copied ? 'copied' : ''}`} 
+                onClick={handleCopy}
+                title={copied ? 'Copied!' : 'Copy to clipboard'}
+                disabled={loading}
+                aria-label={copied ? 'Copied!' : 'Copy to clipboard'}
+              >
+                {copied ? '✓' : <Copy size={16} />}
+              </button>
+            </>
           )}
           {loading && (
             <div className="loading-spinner">

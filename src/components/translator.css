@@ -213,7 +213,7 @@ textarea:disabled {
   cursor: not-allowed;
 }
 
-.clear-btn, .copy-btn {
+.clear-btn, .copy-btn, .speak-btn {
   position: absolute;
   top: 0.75rem;
   right: 0.75rem;
@@ -232,14 +232,20 @@ textarea:disabled {
   z-index: 10;
 }
 
-.clear-btn:hover, .copy-btn:hover {
+.clear-btn:hover, .copy-btn:hover, .speak-btn:hover {
   background: var(--voxora-border);
   color: var(--voxora-text);
   transform: scale(1.05);
 }
 
-.clear-btn {
+.clear-btn, .speak-btn {
   right: 2.5rem;
+}
+
+.speak-btn.speaking {
+  color: var(--voxora-success);
+  background: rgba(52, 211, 153, 0.1);
+  border-color: var(--voxora-success);
 }
 
 .translate-btn {

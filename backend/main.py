@@ -4,6 +4,8 @@ from typing import List, Optional
 from fastapi import Depends, FastAPI, HTTPException, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
+from fastapi.responses import StreamingResponse
+import requests
 
 # Import local modules
 import models, schemas
@@ -23,6 +25,25 @@ Base.metadata.create_all(bind=engine)
 # Create FastAPI app
 app = FastAPI()
 app.include_router(translator_router)  # Add this line right after creating the app
+
+@app.get("/api/tts")
+def proxy_tts(text: str, lang: str):
+    url = "https://translate.google.com/translate_tts"
+    params = {
+        "ie": "UTF-8",
+        "tl": lang,
+        "client": "gtx",
+        "q": text
+    }
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko)"
+    }
+    try:
+        response = requests.get(url, params=params, headers=headers, stream=True)
+        response.raise_for_status()
+        return StreamingResponse(response.iter_content(chunk_size=1024), media_type="audio/mpeg")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 # CORS middleware
 origins = [

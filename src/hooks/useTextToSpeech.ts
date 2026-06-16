@@ -192,71 +192,41 @@ const useTextToSpeech = (options: UseTextToSpeechOptions = {}): UseTextToSpeechR
     }
   }, []);
 
-  // Fallback to online TTS for Indian languages
+  // Fallback to online TTS
   const speakWithResponsiveVoice = async (text: string, language: string) => {
-    console.log('Trying online TTS for language:', language);
+    console.log('Trying online TTS proxy for language:', language);
     
-    // For Indian languages, try using a simple web-based TTS
-    const indianLangs = ['kn', 'hi', 'ta', 'te', 'ml', 'bn', 'gu', 'pa', 'mr', 'ur'];
     const langCode = language.split('-')[0];
     
-    console.log(`Language code: ${langCode}, Is Indian language: ${indianLangs.includes(langCode)}`);
-    
-    if (indianLangs.includes(langCode)) {
-      try {
-        // Create audio element using Google Translate TTS with alternative URL
-        const audio = new Audio();
-        // Try multiple URL formats for better compatibility
-        const ttsUrl = `https://translate.google.com/translate_tts?ie=UTF-8&tl=${langCode}&client=gtx&q=${encodeURIComponent(text)}`;
-        console.log(`TTS URL: ${ttsUrl}`);
-        audio.src = ttsUrl;
-        audio.volume = 1;
-        
-        audio.onplay = () => {
-          setIsSpeaking(true);
-          setIsOnlineTTS(true);
-        };
-        
-        audio.onended = () => {
-          setIsSpeaking(false);
-          setIsOnlineTTS(false);
-        };
-        
-        audio.onerror = async (error) => {
-          console.error('Google TTS failed, trying alternative:', error);
-          setIsSpeaking(false);
-          setIsOnlineTTS(false);
-          
-          // Try alternative TTS service
-          try {
-            const altAudio = new Audio();
-            const altUrl = `https://api.voicerss.org/?key=YOUR_API_KEY&hl=${langCode}&src=${encodeURIComponent(text)}`;
-            console.log(`Trying alternative TTS: ${altUrl}`);
-            altAudio.src = altUrl;
-            altAudio.volume = 1;
-            
-            altAudio.onplay = () => {
-              setIsSpeaking(true);
-              setIsOnlineTTS(true);
-            };
-            
-            altAudio.onended = () => {
-              setIsSpeaking(false);
-              setIsOnlineTTS(false);
-            };
-            
-            await altAudio.play();
-          } catch (altError) {
-            console.error('Alternative TTS also failed:', altError);
-          }
-        };
-        
-        await audio.play();
-        return true;
-      } catch (error) {
-        console.error('Online TTS error:', error);
+    try {
+      const audio = new Audio();
+      const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+      const ttsUrl = `${baseUrl}/api/tts?lang=${langCode}&text=${encodeURIComponent(text)}`;
+      console.log(`TTS Proxy URL: ${ttsUrl}`);
+      audio.src = ttsUrl;
+      audio.volume = 1;
+      
+      audio.onplay = () => {
+        setIsSpeaking(true);
+        setIsOnlineTTS(true);
+      };
+      
+      audio.onended = () => {
+        setIsSpeaking(false);
         setIsOnlineTTS(false);
-      }
+      };
+      
+      audio.onerror = (error) => {
+        console.error('TTS proxy failed:', error);
+        setIsSpeaking(false);
+        setIsOnlineTTS(false);
+      };
+      
+      await audio.play();
+      return true;
+    } catch (error) {
+      console.error('Online TTS proxy error:', error);
+      setIsOnlineTTS(false);
     }
     
     return false;

@@ -28,7 +28,7 @@ const Index = () => {
   const shareMenuRef = useRef<HTMLDivElement>(null);
   const isProcessing = useRef(false);
   const lastProcessedTranscript = useRef('');
-  
+
   // Close share menu when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -47,13 +47,13 @@ const Index = () => {
   const createNote = useCreateNote();
   const deleteNote = useDeleteNote();
   const deleteAllNotes = useDeleteAllNotes();
-  
+
   // Transform notes data to match the expected format
   const notes = notesData.map(note => ({
     ...note,
     timestamp: new Date(note.created_at)
   }));
-  
+
   const [currentText, setCurrentText] = useState('');
   const [language, setLanguage] = useState('en-US');
   const [showVoiceCommands, setShowVoiceCommands] = useState(false);
@@ -61,7 +61,7 @@ const Index = () => {
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [summaryError, setSummaryError] = useState<string | null>(null);
   const { toast } = useToast();
-  
+
   const {
     isListening,
     transcript,
@@ -79,11 +79,11 @@ const Index = () => {
   useEffect(() => {
     console.log('Available voices:', voices);
     console.log('Current language:', language);
-    const kannadaVoices = voices.filter(v => 
+    const kannadaVoices = voices.filter(v =>
       v.lang.includes('kn') || v.name.toLowerCase().includes('kannada')
     );
     console.log('Kannada voices:', kannadaVoices);
-    
+
     // If current language is Kannada and no Kannada voices are found, log a warning
     if (language === 'kn-IN' && !kannadaVoices.length) {
       console.warn('No Kannada voices found. The browser will try to use the default voice.');
@@ -105,7 +105,7 @@ const Index = () => {
   useEffect(() => {
     if (transcript && !isProcessing.current) {
       const lowerText = transcript.toLowerCase();
-      const isCommand = 
+      const isCommand =
         lowerText.includes('new note') ||
         lowerText.includes('save note') ||
         lowerText.includes('save this') ||
@@ -119,7 +119,7 @@ const Index = () => {
         lowerText.includes('clear all notes') ||
         lowerText.includes('stop listening') ||
         lowerText.includes('stop voice');
-      
+
       // Don't set text for any commands - keep text area clear for voice commands
       if (!isCommand) {
         setCurrentText(transcript);
@@ -141,11 +141,11 @@ const Index = () => {
     try {
       setIsSummarizing(true);
       setSummaryError(null);
-      
+
       // Import dynamically to avoid loading the module on initial load
       const { summarizeText } = await import('@/lib/summarize');
       const summary = await summarizeText(currentText);
-      
+
       setCurrentText(summary);
       toast({
         title: 'Summary generated',
@@ -166,11 +166,11 @@ const Index = () => {
 
   const handleSaveNote = async () => {
     if (!currentText.trim()) return;
-    
+
     try {
       await createNote.mutateAsync(currentText);
       setCurrentText('');
-      
+
       toast({
         title: 'Note saved',
         description: 'Your note has been saved successfully.',
@@ -193,7 +193,7 @@ const Index = () => {
     document.body.appendChild(element);
     element.click();
     document.body.removeChild(element);
-    
+
     toast({
       title: "Note downloaded",
       description: "Your note has been downloaded as a text file."
@@ -203,16 +203,16 @@ const Index = () => {
   const downloadAsPDF = (note: Note) => {
     const doc = new jsPDF();
     const date = new Date(note.timestamp).toLocaleString();
-    
+
     // Add title
     doc.setFontSize(18);
     doc.text('Voice Note', 20, 20);
-    
+
     // Add date
     doc.setFontSize(10);
     doc.setTextColor(100);
     doc.text(`Created: ${date}`, 20, 30);
-    
+
     // Add note content with word wrap + multi-page pagination
     doc.setFontSize(12);
     doc.setTextColor(0, 0, 0);
@@ -245,10 +245,10 @@ const Index = () => {
       const pageLines = lines.slice(i, i + linesPerPage);
       doc.text(pageLines, leftMargin, y);
     }
-    
+
     // Save the PDF
     doc.save(`voice-note-${note.timestamp.toISOString().split('T')[0]}.pdf`);
-    
+
     toast({
       title: "PDF Downloaded",
       description: "Your note has been downloaded as a PDF file."
@@ -276,7 +276,7 @@ const Index = () => {
 
   const handleClearAllNotes = () => {
     if (notes.length === 0) return;
-    
+
     if (window.confirm('Are you sure you want to delete all notes? This action cannot be undone.')) {
       deleteAllNotes.mutate(undefined, {
         onSuccess: () => {
@@ -299,13 +299,13 @@ const Index = () => {
 
   const handleVoiceCommand = async (text: string) => {
     const lowerText = text.toLowerCase();
-    
+
     // Common function to handle command response
     const handleCommand = async (response: string, action?: () => void) => {
       // Clear the current transcript first
       resetTranscript();
       lastProcessedTranscript.current = '';
-      
+
       // Execute the action if provided
       if (action) {
         await new Promise<void>((resolve) => {
@@ -314,7 +314,7 @@ const Index = () => {
           setTimeout(resolve, 100);
         });
       }
-      
+
       // Only speak if not already speaking
       if (!isSpeaking) {
         await new Promise<void>((resolve) => {
@@ -324,7 +324,7 @@ const Index = () => {
         });
       }
     };
-    
+
     if (lowerText.includes('new note')) {
       handleCommand("New note created", () => setCurrentText(''));
     } else if (lowerText.includes('save note') || lowerText.includes('save this')) {
@@ -353,16 +353,16 @@ const Index = () => {
   };
 
   // Check for voice commands when transcript updates
-  
+
   useEffect(() => {
     const processCommand = async () => {
       if (!transcript || transcript === lastProcessedTranscript.current || isProcessing.current) {
         return;
       }
-      
+
       // Check if this is a command before processing
       const lowerText = transcript.toLowerCase();
-      const isCommand = 
+      const isCommand =
         lowerText.includes('new note') ||
         lowerText.includes('save note') ||
         lowerText.includes('save this') ||
@@ -374,7 +374,7 @@ const Index = () => {
         lowerText.includes('remove last note') ||
         lowerText.includes('delete all notes') ||
         lowerText.includes('clear all notes');
-      
+
       // Clear transcript immediately if it's a command
       if (isCommand) {
         resetTranscript();
@@ -390,10 +390,10 @@ const Index = () => {
         }
         return;
       }
-      
+
       isProcessing.current = true;
       lastProcessedTranscript.current = transcript;
-      
+
       try {
         await handleVoiceCommand(transcript);
       } finally {
@@ -432,8 +432,8 @@ const Index = () => {
                 <h1 className="text-xl font-bold bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
                   Voice Notes
                 </h1>
-                <Link 
-                  to="/translator" 
+                <Link
+                  to="/translator"
                   className="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium transition-colors"
                 >
                   Translator
@@ -451,9 +451,9 @@ const Index = () => {
             {/* Header */}
             <div className="text-center mb-8">
               <div className="flex justify-center mb-4">
-                <img 
-                  src={aiAssistantAvatar} 
-                  alt="AI Assistant" 
+                <img
+                  src={aiAssistantAvatar}
+                  alt="AI Assistant"
                   className="w-24 h-24 rounded-full shadow-ai animate-float"
                 />
               </div>
@@ -517,7 +517,7 @@ const Index = () => {
                     >
                       <X className="h-4 w-4 text-white" />
                     </button>
-                    
+
                     {/* Share Dropdown Menu Button */}
                     <div className="relative">
                       <button
@@ -532,9 +532,9 @@ const Index = () => {
                         <Share2 className="h-4 w-4 text-gray-500 dark:text-gray-400" />
                         <ChevronDown className={`h-3 w-3 ml-0.5 text-gray-500 dark:text-gray-400 transition-transform ${isShareMenuOpen ? 'rotate-180' : ''}`} />
                       </button>
-                      
+
                       {/* Dropdown menu */}
-                      <div 
+                      <div
                         id="share-menu"
                         className={`absolute bottom-full right-0 mb-2 w-60 bg-white dark:bg-gray-800 rounded-lg shadow-lg py-1 z-10 transition-all duration-200 ${isShareMenuOpen ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-1 pointer-events-none'}`}
                         role="menu"
@@ -562,7 +562,7 @@ const Index = () => {
                           <Share2 className="h-4 w-4 mr-2" />
                           {navigator.share ? 'Share via...' : 'Copy to clipboard'}
                         </button>
-                        
+
                         <button
                           onClick={() => {
                             const encodedText = encodeURIComponent(currentText);
@@ -573,7 +573,7 @@ const Index = () => {
                           <MessageCircle className="h-4 w-4 mr-2 text-green-500" />
                           Share on WhatsApp
                         </button>
-                        
+
                         <button
                           onClick={() => {
                             const encodedText = encodeURIComponent(currentText);
@@ -585,7 +585,7 @@ const Index = () => {
                           <Instagram className="h-4 w-4 mr-2 text-pink-600" />
                           Share on Instagram
                         </button>
-                        
+
                         <button
                           onClick={() => {
                             const encodedText = encodeURIComponent(currentText);
@@ -600,7 +600,7 @@ const Index = () => {
                     </div>
                   </div>
                 )}
-                
+
                 <div className="flex gap-2 justify-center">
                   <Button
                     onClick={handleSummarize}
@@ -629,8 +629,8 @@ const Index = () => {
                     disabled={!currentText.trim() || isSpeaking}
                     variant="outline"
                     size="sm"
-                    style={{ 
-                      background: 'linear-gradient(135deg, #00E5FF, #00BFA6)', 
+                    style={{
+                      background: 'linear-gradient(135deg, #00E5FF, #00BFA6)',
                       color: '#0F172A',
                       transition: 'all 0.2s ease'
                     }}
@@ -639,7 +639,7 @@ const Index = () => {
                     {isSpeaking ? (
                       <span className="flex items-center">
                         <svg className="animate-pulse -ml-1 mr-2 h-4 w-4 text-white" viewBox="0 0 24 24" fill="currentColor">
-                          <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
+                          <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z" />
                         </svg>
                         Speaking...
                       </span>
@@ -662,11 +662,11 @@ const Index = () => {
                   </Button>
                 </div>
 
-                </div>
+              </div>
 
               {/* Voice Commands Info */}
               <div className="mt-6 bg-gray-800/80 border border-gray-700 rounded-xl shadow-lg backdrop-blur-sm overflow-hidden">
-                <button 
+                <button
                   onClick={() => setShowVoiceCommands(!showVoiceCommands)}
                   className="w-full text-left p-5 flex items-center justify-between hover:bg-gray-700/50 transition-colors"
                 >
@@ -676,16 +676,16 @@ const Index = () => {
                     </svg>
                     Voice Commands
                   </h4>
-                  <svg 
+                  <svg
                     className={`w-4 h-4 text-gray-400 transition-transform ${showVoiceCommands ? 'rotate-180' : ''}`}
-                    fill="none" 
-                    viewBox="0 0 24 24" 
+                    fill="none"
+                    viewBox="0 0 24 24"
                     stroke="currentColor"
                   >
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                   </svg>
                 </button>
-                
+
                 {showVoiceCommands && (
                   <div className="p-5 pt-0">
                     <ul className="space-y-2.5">
@@ -749,7 +749,7 @@ const Index = () => {
             {/* Saved Notes Section */}
             <div className="max-w-4xl mx-auto mt-8">
               <div className="bg-gray-800/80 border border-gray-700 rounded-xl shadow-lg backdrop-blur-sm overflow-hidden">
-                <button 
+                <button
                   onClick={() => setShowSavedNotes(!showSavedNotes)}
                   className="w-full text-left p-4 pl-5 pr-4 flex items-center justify-between hover:bg-gray-700/50 transition-colors rounded-t-lg"
                 >
@@ -759,22 +759,22 @@ const Index = () => {
                     </svg>
                     Saved Notes {notes.length > 0 && `(${notes.length})`}
                   </h4>
-                  <svg 
+                  <svg
                     className={`w-4 h-4 text-gray-400 transition-transform ${showSavedNotes ? 'rotate-180' : ''}`}
-                    fill="none" 
-                    viewBox="0 0 24 24" 
+                    fill="none"
+                    viewBox="0 0 24 24"
                     stroke="currentColor"
                   >
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                   </svg>
                 </button>
-                
+
                 {showSavedNotes && (
                   <div className="px-4 pb-4">
                     <div className="bg-gray-700/50 rounded-b-lg border border-gray-600/50">
                       {notes.length > 0 ? (
                         <div className="max-h-[500px] overflow-y-auto">
-                          <NotesList 
+                          <NotesList
                             notes={notes}
                             onDeleteNote={handleDeleteNote}
                             onSpeakText={speakText}

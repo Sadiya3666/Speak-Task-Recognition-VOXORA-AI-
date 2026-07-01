@@ -169,67 +169,20 @@ const useTextToSpeech = (options: UseTextToSpeechOptions = {}): UseTextToSpeechR
   const stop = useCallback(() => {
     try {
       stoppingRef.current = true;
-      // Stop any ongoing speech synthesis
       if (synthRef.current) {
         synthRef.current.cancel();
       }
-      
-      // Stop ResponsiveVoice if it's active
-      if (window.responsiveVoice) {
-        window.responsiveVoice.cancel();
-      }
-      
       setIsSpeaking(false);
       setIsOnlineTTS(false);
       utteranceRef.current = null;
     } catch (error) {
       console.error('Error stopping speech:', error);
     } finally {
-      // Let any pending onerror/onend events flush before re-enabling errors.
       window.setTimeout(() => {
         stoppingRef.current = false;
       }, 0);
     }
   }, []);
-
-  // Fallback to online TTS
-  const speakWithResponsiveVoice = async (text: string, language: string) => {
-    console.log('Trying online TTS directly for language:', language);
-    
-    const langCode = language.split('-')[0];
-    
-    try {
-      const audio = new Audio();
-      const ttsUrl = `https://translate.google.com/translate_tts?ie=UTF-8&tl=${langCode}&client=gtx&q=${encodeURIComponent(text)}`;
-      console.log(`TTS Direct URL: ${ttsUrl}`);
-      audio.src = ttsUrl;
-      audio.volume = 1;
-      
-      audio.onplay = () => {
-        setIsSpeaking(true);
-        setIsOnlineTTS(true);
-      };
-      
-      audio.onended = () => {
-        setIsSpeaking(false);
-        setIsOnlineTTS(false);
-      };
-      
-      audio.onerror = (error) => {
-        console.error('TTS direct failed:', error);
-        setIsSpeaking(false);
-        setIsOnlineTTS(false);
-      };
-      
-      await audio.play();
-      return true;
-    } catch (error) {
-      console.error('Online TTS proxy error:', error);
-      setIsOnlineTTS(false);
-    }
-    
-    return false;
-  };
 
   const speak = useCallback((text: string, language: string = defaultLanguage) => {
     if (!text.trim()) {
@@ -239,42 +192,6 @@ const useTextToSpeech = (options: UseTextToSpeechOptions = {}): UseTextToSpeechR
     
     console.log(`Speaking text: "${text}" in language: ${language}`);
     stop();
-
-    // Special test for Hindi - try direct browser TTS first
-    if (language.startsWith('hi')) {
-      console.log('Testing Hindi TTS with direct approach');
-      try {
-        const hindiUtterance = new SpeechSynthesisUtterance(text);
-        hindiUtterance.lang = 'hi-IN';
-        hindiUtterance.rate = 0.9;
-        hindiUtterance.pitch = 1;
-        hindiUtterance.volume = 1;
-        
-        hindiUtterance.onstart = () => {
-          console.log('Hindi speech started');
-          setIsSpeaking(true);
-        };
-        
-        hindiUtterance.onend = () => {
-          console.log('Hindi speech ended');
-          setIsSpeaking(false);
-          utteranceRef.current = null;
-        };
-        
-        hindiUtterance.onerror = (event) => {
-          console.error('Hindi TTS error:', event);
-          console.log('Falling back to online TTS for Hindi');
-          setIsSpeaking(false);
-          speakWithResponsiveVoice(text, language).catch(console.error);
-        };
-        
-        utteranceRef.current = hindiUtterance;
-        synthRef.current.speak(hindiUtterance);
-        return;
-      } catch (error) {
-        console.error('Direct Hindi TTS failed:', error);
-      }
-    }
 
     if (!isSupported || !synthRef.current) {
       console.log('TTS not supported in this browser');
@@ -286,10 +203,9 @@ const useTextToSpeech = (options: UseTextToSpeechOptions = {}): UseTextToSpeechR
       utterance.lang = language;
       
       const voice = getVoiceForLanguage(language);
-      console.log(`Voice selection result for ${language}:`, voice);
       if (voice) {
         utterance.voice = voice;
-        console.log(`Using browser voice: ${voice.name} (${voice.lang}) for language: ${language}`);
+        console.log(`Using browser voice: ${voice.name} (${voice.lang})`);
       } else {
         console.warn(`No exact voice found in getVoices() for ${language}, relying on browser default for lang.`);
       }
@@ -311,40 +227,20 @@ const useTextToSpeech = (options: UseTextToSpeechOptions = {}): UseTextToSpeechR
 
       utterance.onerror = (event) => {
         const err = (event as any)?.error;
-        // Expected when we intentionally stop/cancel or immediately restart speech.
         if (stoppingRef.current || err === 'interrupted' || err === 'canceled' || err === 'cancelled') {
           console.debug('Speech synthesis stopped:', err);
-          setIsSpeaking(false);
-          utteranceRef.current = null;
-          return;
+        } else {
+          console.error('Speech synthesis error:', event);
         }
-
-        console.error('Speech synthesis error:', event);
         setIsSpeaking(false);
         utteranceRef.current = null;
-        
-        // Fall back to online TTS if local TTS fails
-        console.log('Falling back to online TTS after error');
-        speakWithResponsiveVoice(text, language).catch(console.error);
       };
 
-      try {
-        utteranceRef.current = utterance;
-        synthRef.current.speak(utterance);
-        console.log('Started speaking with language:', language);
-      } catch (error) {
-        console.error('Error starting speech synthesis:', error);
-        setIsSpeaking(false);
-        utteranceRef.current = null;
-        
-        // Fall back to online TTS if local TTS fails to start
-        console.log('Falling back to online TTS after start error');
-        speakWithResponsiveVoice(text, language).catch(console.error);
-      }
+      utteranceRef.current = utterance;
+      synthRef.current.speak(utterance);
     } catch (error) {
       console.error('Error creating speech utterance:', error);
-      // Fall back to online TTS if utterance creation fails
-      speakWithResponsiveVoice(text, language).catch(console.error);
+      setIsSpeaking(false);
     }
   }, [isSupported, getVoiceForLanguage, defaultLanguage, stop]);
 

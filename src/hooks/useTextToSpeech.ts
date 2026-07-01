@@ -163,7 +163,7 @@ const useTextToSpeech = (options: UseTextToSpeechOptions = {}): UseTextToSpeechR
       v.name.toLowerCase().includes(langCode)
     );
     
-    return langMatch || voices[0] || null;
+    return langMatch || null;
   }, [voices]);
 
   const stop = useCallback(() => {

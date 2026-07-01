@@ -29,6 +29,7 @@ const Index = () => {
   const shareMenuRef = useRef<HTMLDivElement>(null);
   const isProcessing = useRef(false);
   const lastProcessedTranscript = useRef('');
+  const textBeforeListening = useRef('');
 
   // Close share menu when clicking outside
   useEffect(() => {
@@ -70,7 +71,7 @@ const Index = () => {
     stopListening,
     resetTranscript,
     isSupported: speechRecognitionSupported
-  } = useSpeechRecognition();
+  } = useSpeechRecognition({ language });
 
   const { speak: speakText, isSpeaking, stop: stopSpeaking, voices } = useTextToSpeech({
     defaultLanguage: language
@@ -92,6 +93,7 @@ const Index = () => {
   }, [voices, language]);
 
   const startListening = () => {
+    textBeforeListening.current = currentText;
     startRecognition({ language });
   };
 
@@ -338,6 +340,9 @@ const Index = () => {
       lastProcessedTranscript.current = transcript;
       isProcessing.current = true;
       
+      // Revert the text to remove the command phrase from the textarea
+      setCurrentText(textBeforeListening.current);
+      
       const processCommand = async () => {
         try {
           await handleVoiceCommand(commandType);
@@ -350,7 +355,9 @@ const Index = () => {
       
       processCommand();
     } else {
-      setCurrentText(transcript);
+      // Append the transcript to what was there before we started listening
+      const separator = textBeforeListening.current && !textBeforeListening.current.endsWith(' ') ? ' ' : '';
+      setCurrentText(textBeforeListening.current + separator + transcript);
     }
   }, [transcript, language, handleVoiceCommand]);
 

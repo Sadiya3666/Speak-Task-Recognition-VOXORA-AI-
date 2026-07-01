@@ -14,6 +14,7 @@ import { jsPDF } from 'jspdf';
 import aiAssistantAvatar from '@/assets/robot-chatbot-generative-ai-free-png.webp';
 import { LanguageSelector } from '@/components/LanguageSelector';
 import { UserMenu } from '@/components/UserMenu';
+import { getCommandType, CommandType } from '@/lib/voiceCommands';
 import { useNotes, useCreateNote, useDeleteNote, useDeleteAllNotes } from '@/lib/api/notes';
 
 interface Note {
@@ -101,31 +102,6 @@ const Index = () => {
     }
   }, [showSavedNotes, refetch]);
 
-  // Update current text when transcript changes, but not for voice commands
-  useEffect(() => {
-    if (transcript && !isProcessing.current) {
-      const lowerText = transcript.toLowerCase();
-      const isCommand =
-        lowerText.includes('new note') ||
-        lowerText.includes('save note') ||
-        lowerText.includes('save this') ||
-        lowerText.includes('clear text') ||
-        lowerText.includes('clear note') ||
-        lowerText.includes('read notes') ||
-        lowerText.includes('read my notes') ||
-        lowerText.includes('delete last note') ||
-        lowerText.includes('remove last note') ||
-        lowerText.includes('delete all notes') ||
-        lowerText.includes('clear all notes') ||
-        lowerText.includes('stop listening') ||
-        lowerText.includes('stop voice');
-
-      // Don't set text for any commands - keep text area clear for voice commands
-      if (!isCommand) {
-        setCurrentText(transcript);
-      }
-    }
-  }, [transcript, isProcessing]);
 
   // Summarize text
   const handleSummarize = async () => {
@@ -297,115 +273,87 @@ const Index = () => {
     }
   };
 
-  const handleVoiceCommand = async (text: string) => {
-    const lowerText = text.toLowerCase();
-
-    // Common function to handle command response
+  const handleVoiceCommand = async (commandType: CommandType) => {
     const handleCommand = async (response: string, action?: () => void) => {
-      // Clear the current transcript first
       resetTranscript();
       lastProcessedTranscript.current = '';
 
-      // Execute the action if provided
       if (action) {
         await new Promise<void>((resolve) => {
           action();
-          // Small delay to ensure state updates
           setTimeout(resolve, 100);
         });
       }
 
-      // Only speak if not already speaking
       if (!isSpeaking) {
         await new Promise<void>((resolve) => {
           speakText(response);
-          // Prevent multiple speech triggers
           setTimeout(resolve, 1000);
         });
       }
     };
 
-    if (lowerText.includes('new note')) {
-      handleCommand("New note created", () => setCurrentText(''));
-    } else if (lowerText.includes('save note') || lowerText.includes('save this')) {
-      handleCommand("Note saved successfully", handleSaveNote);
-    } else if (lowerText.includes('clear text') || lowerText.includes('clear note')) {
-      handleCommand("Text cleared", () => setCurrentText(''));
-    } else if (lowerText.includes('read notes') || lowerText.includes('read my notes')) {
-      // Read notes command disabled - do nothing
-      console.log('Read notes command disabled');
-      return;
-    } else if (lowerText.includes('delete last note') || lowerText.includes('remove last note')) {
-      if (notes.length > 0) {
-        const deletedNote = notes[0];
-        handleCommand("Last note deleted", () => handleDeleteNote(deletedNote.id));
-      } else {
-        handleCommand("No notes to delete");
-      }
-    } else if (lowerText.includes('delete all notes') || lowerText.includes('clear all notes')) {
-      handleCommand("All notes have been deleted", handleClearAllNotes);
-    } else if (lowerText.includes('stop listening') || lowerText.includes('stop voice')) {
-      if (isListening) {
-        stopListening();
-        speakText("Stopped listening");
-      }
+    switch (commandType) {
+      case 'NEW_NOTE':
+        handleCommand("New note created", () => setCurrentText(''));
+        break;
+      case 'SAVE_NOTE':
+        handleCommand("Note saved successfully", handleSaveNote);
+        break;
+      case 'CLEAR_TEXT':
+        handleCommand("Text cleared", () => setCurrentText(''));
+        break;
+      case 'READ_NOTES':
+        console.log('Read notes command disabled');
+        break;
+      case 'DELETE_LAST_NOTE':
+        if (notes.length > 0) {
+          const deletedNote = notes[0];
+          handleCommand("Last note deleted", () => handleDeleteNote(deletedNote.id));
+        } else {
+          handleCommand("No notes to delete");
+        }
+        break;
+      case 'DELETE_ALL_NOTES':
+        handleCommand("All notes have been deleted", handleClearAllNotes);
+        break;
+      case 'STOP_LISTENING':
+        if (isListening) {
+          stopListening();
+          speakText("Stopped listening");
+        }
+        break;
     }
   };
 
-  // Check for voice commands when transcript updates
-
   useEffect(() => {
-    const processCommand = async () => {
-      if (!transcript || transcript === lastProcessedTranscript.current || isProcessing.current) {
-        return;
-      }
+    if (!transcript || transcript === lastProcessedTranscript.current || isProcessing.current) {
+      return;
+    }
 
-      // Check if this is a command before processing
-      const lowerText = transcript.toLowerCase();
-      const isCommand =
-        lowerText.includes('new note') ||
-        lowerText.includes('save note') ||
-        lowerText.includes('save this') ||
-        lowerText.includes('clear text') ||
-        lowerText.includes('clear note') ||
-        lowerText.includes('read notes') ||
-        lowerText.includes('read my notes') ||
-        lowerText.includes('delete last note') ||
-        lowerText.includes('remove last note') ||
-        lowerText.includes('delete all notes') ||
-        lowerText.includes('clear all notes');
+    const commandType = getCommandType(transcript, language);
 
-      // Clear transcript immediately if it's a command
-      if (isCommand) {
-        resetTranscript();
-        lastProcessedTranscript.current = transcript;
-        // Still process the command to execute it
-        isProcessing.current = true;
+    if (commandType) {
+      resetTranscript();
+      lastProcessedTranscript.current = transcript;
+      isProcessing.current = true;
+      
+      const processCommand = async () => {
         try {
-          await handleVoiceCommand(transcript);
+          await handleVoiceCommand(commandType);
         } finally {
           setTimeout(() => {
             isProcessing.current = false;
           }, 1000);
         }
-        return;
-      }
+      };
+      
+      processCommand();
+    } else {
+      setCurrentText(transcript);
+    }
+  }, [transcript, language, handleVoiceCommand]);
 
-      isProcessing.current = true;
-      lastProcessedTranscript.current = transcript;
-
-      try {
-        await handleVoiceCommand(transcript);
-      } finally {
-        // Small delay to prevent rapid re-processing
-        setTimeout(() => {
-          isProcessing.current = false;
-        }, 1000);
-      }
-    };
-
-    processCommand();
-  }, [transcript, handleVoiceCommand]);
 
   if (!speechRecognitionSupported) {
     return (

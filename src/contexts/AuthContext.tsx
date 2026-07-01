@@ -1,7 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
-import { apiFetch } from '@/lib/api';
 
 interface User {
   id: string;
@@ -18,12 +17,6 @@ interface AuthContextType {
   logout: () => void;
   loading: boolean;
   error: string | null;
-}
-
-interface TokenResponse {
-  access_token: string;
-  token_type: string;
-  user: User;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -69,32 +62,23 @@ export const AuthProviderContent = ({ children }: { children: ReactNode }) => {
           const parsedUser: User = JSON.parse(storedUser);
           setToken(storedToken);
           setUser(parsedUser);
+          
+          if (!storedToken.startsWith('mock_token_')) {
+             throw new Error('Invalid token');
+          }
         } catch {
           // If parsing fails, clear invalid data
           localStorage.removeItem('token');
           localStorage.removeItem('user');
+          setToken(null);
+          setUser(null);
+
+          if (location.pathname !== '/login' && location.pathname !== '/register') {
+            safeNavigate('/login');
+          }
         }
       }
-
-      try {
-        // Validate token and refresh user data from backend
-        const freshUser = await apiFetch<User>('/auth/me', {}, storedToken);
-        setUser(freshUser);
-        setToken(storedToken);
-        localStorage.setItem('user', JSON.stringify(freshUser));
-      } catch {
-        // Token is invalid/expired – clear session and redirect to login if needed
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        setToken(null);
-        setUser(null);
-
-        if (location.pathname !== '/login' && location.pathname !== '/register') {
-          safeNavigate('/login');
-        }
-      } finally {
-        setLoading(false);
-      }
+      setLoading(false);
     };
 
     void initializeAuth();
@@ -106,26 +90,28 @@ export const AuthProviderContent = ({ children }: { children: ReactNode }) => {
     setError(null);
     
     try {
-      const data = await apiFetch<TokenResponse>(
-        '/auth/login',
-        {
-          method: 'POST',
-          body: JSON.stringify({ email, password }),
-        }
-      );
+      // Mock Login
+      await new Promise(resolve => setTimeout(resolve, 500));
+      const users = JSON.parse(localStorage.getItem('mock_users') || '[]');
+      const foundUser = users.find((u: any) => u.email === email && u.password === password);
+      
+      if (!foundUser) {
+        throw new Error('Invalid email or password');
+      }
 
-      const { access_token, user } = data;
+      const access_token = 'mock_token_' + Date.now();
+      const userData = { id: foundUser.id, email: foundUser.email, name: foundUser.name };
 
       // Update state and storage
-      setUser(user);
+      setUser(userData);
       setToken(access_token);
       localStorage.setItem('token', access_token);
-      localStorage.setItem('user', JSON.stringify(user));
+      localStorage.setItem('user', JSON.stringify(userData));
       
       // Show success message
       toast({
         title: 'Login successful',
-        description: `Welcome back, ${user.name}!`,
+        description: `Welcome back, ${userData.name}!`,
         variant: 'success',
       });
       
@@ -149,20 +135,24 @@ export const AuthProviderContent = ({ children }: { children: ReactNode }) => {
     setError(null);
     
     try {
-      const data = await apiFetch<TokenResponse>(
-        '/auth/register',
-        {
-          method: 'POST',
-          body: JSON.stringify({ name, email, password }),
-        }
-      );
+      // Mock Register
+      await new Promise(resolve => setTimeout(resolve, 500));
+      const users = JSON.parse(localStorage.getItem('mock_users') || '[]');
+      if (users.find((u: any) => u.email === email)) {
+        throw new Error('User already exists');
+      }
 
-      const { access_token, user } = data;
+      const newUser = { id: Date.now().toString(), name, email, password };
+      users.push(newUser);
+      localStorage.setItem('mock_users', JSON.stringify(users));
 
-      setUser(user);
+      const access_token = 'mock_token_' + Date.now();
+      const userData = { id: newUser.id, email: newUser.email, name: newUser.name };
+
+      setUser(userData);
       setToken(access_token);
       localStorage.setItem('token', access_token);
-      localStorage.setItem('user', JSON.stringify(user));
+      localStorage.setItem('user', JSON.stringify(userData));
 
       toast({
         title: 'Registration successful',

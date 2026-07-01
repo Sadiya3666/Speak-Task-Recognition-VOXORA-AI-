@@ -194,15 +194,14 @@ const useTextToSpeech = (options: UseTextToSpeechOptions = {}): UseTextToSpeechR
 
   // Fallback to online TTS
   const speakWithResponsiveVoice = async (text: string, language: string) => {
-    console.log('Trying online TTS proxy for language:', language);
+    console.log('Trying online TTS directly for language:', language);
     
     const langCode = language.split('-')[0];
     
     try {
       const audio = new Audio();
-      const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
-      const ttsUrl = `${baseUrl}/api/tts?lang=${langCode}&text=${encodeURIComponent(text)}`;
-      console.log(`TTS Proxy URL: ${ttsUrl}`);
+      const ttsUrl = `https://translate.google.com/translate_tts?ie=UTF-8&tl=${langCode}&client=gtx&q=${encodeURIComponent(text)}`;
+      console.log(`TTS Direct URL: ${ttsUrl}`);
       audio.src = ttsUrl;
       audio.volume = 1;
       
@@ -217,7 +216,7 @@ const useTextToSpeech = (options: UseTextToSpeechOptions = {}): UseTextToSpeechR
       };
       
       audio.onerror = (error) => {
-        console.error('TTS proxy failed:', error);
+        console.error('TTS direct failed:', error);
         setIsSpeaking(false);
         setIsOnlineTTS(false);
       };

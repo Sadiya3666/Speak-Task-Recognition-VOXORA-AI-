@@ -136,14 +136,11 @@ const Translator = () => {
           const chunk = chunks[i];
           setTranslatedText(`Translating... (${Math.round(((i) / chunks.length) * 100)}%)`);
           
-          const response = await axios.post(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'}/api/translate`, {
-            text: chunk,
-            target_lang: toLang,
-            source_lang: sourceLang
-          });
+          const langPair = `${sourceLang === 'auto' ? 'en' : sourceLang}|${toLang}`;
+          const response = await axios.get(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(chunk)}&langpair=${langPair}`);
           
-          if (response.data?.translated_text) {
-            result += response.data.translated_text;
+          if (response.data?.responseData?.translatedText) {
+            result += response.data.responseData.translatedText;
           } else {
             throw new Error('Invalid response from translation service');
           }
@@ -152,14 +149,11 @@ const Translator = () => {
         setTranslatedText(result);
       } else {
         // For small texts, translate in one go
-        const response = await axios.post(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'}/api/translate`, {
-          text: inputText,
-          target_lang: toLang,
-          source_lang: sourceLang
-        });
+        const langPair = `${sourceLang === 'auto' ? 'en' : sourceLang}|${toLang}`;
+        const response = await axios.get(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(inputText)}&langpair=${langPair}`);
         
-        if (response.data?.translated_text) {
-          setTranslatedText(response.data.translated_text);
+        if (response.data?.responseData?.translatedText) {
+          setTranslatedText(response.data.responseData.translatedText);
         } else {
           throw new Error('Invalid response from translation service');
         }

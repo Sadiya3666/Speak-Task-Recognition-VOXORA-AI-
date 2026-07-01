@@ -1,7 +1,5 @@
 import axios from 'axios';
 
-const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
-
 export interface TranslationResult {
   original_text: string;
   translated_text: string;
@@ -14,20 +12,23 @@ export const translateText = async (
   targetLang: string,
   sourceLang: string = 'auto'
 ): Promise<TranslationResult> => {
-  const token = localStorage.getItem('token');
-  const response = await axios.post(
-    `${API_URL}/api/translate`,
-    { 
-      text, 
-      target_lang: targetLang, 
-      source_lang: sourceLang 
-    },
-    {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-    }
-  );
-  return response.data;
+  try {
+    const langPair = `${sourceLang === 'auto' ? 'en' : sourceLang}|${targetLang}`;
+    const response = await axios.get(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${langPair}`);
+    
+    return {
+      original_text: text,
+      translated_text: response.data.responseData.translatedText || text,
+      source_language: sourceLang,
+      target_language: targetLang
+    };
+  } catch (error) {
+    console.error('Translation error:', error);
+    return {
+      original_text: text,
+      translated_text: "Translation failed (mock offline)",
+      source_language: sourceLang,
+      target_language: targetLang
+    };
+  }
 };

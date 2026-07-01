@@ -101,286 +101,31 @@ const Index = () => {
     }
   }, [showSavedNotes, refetch]);
 
-  // Update current text when transcript changes, but not for voice commands
+  // Handle transcript changes for both text entry and voice commands
   useEffect(() => {
-    if (transcript && !isProcessing.current) {
-      const lowerText = transcript.toLowerCase();
-      const isCommand =
-        lowerText.includes('new note') ||
-        lowerText.includes('save note') ||
-        lowerText.includes('save this') ||
-        lowerText.includes('clear text') ||
-        lowerText.includes('clear note') ||
-        lowerText.includes('read notes') ||
-        lowerText.includes('read my notes') ||
-        lowerText.includes('delete last note') ||
-        lowerText.includes('remove last note') ||
-        lowerText.includes('delete all notes') ||
-        lowerText.includes('clear all notes') ||
-        lowerText.includes('stop listening') ||
-        lowerText.includes('stop voice');
-
-      // Don't set text for any commands - keep text area clear for voice commands
-      if (!isCommand) {
-        setCurrentText(transcript);
-      }
-    }
-  }, [transcript, isProcessing]);
-
-  // Summarize text
-  const handleSummarize = async () => {
-    if (!currentText.trim()) {
-      toast({
-        title: 'No text to summarize',
-        description: 'Please enter or speak some text first.',
-        variant: 'destructive',
-      });
+    if (!transcript || transcript === lastProcessedTranscript.current || isProcessing.current) {
       return;
     }
 
-    try {
-      setIsSummarizing(true);
-      setSummaryError(null);
+    const lowerText = transcript.toLowerCase();
+    
+    // Command keywords
+    const isCommand =
+      lowerText.includes('new note') || lowerText.includes('ಹೊಸ ಟಿಪ್ಪಣಿ') ||
+      lowerText.includes('save note') || lowerText.includes('save this') || lowerText.includes('ಉಳಿಸು') ||
+      lowerText.includes('clear text') || lowerText.includes('clear note') || lowerText.includes('ಅಳಿಸು') ||
+      lowerText.includes('read notes') || lowerText.includes('read my notes') || lowerText.includes('ಓದು') ||
+      lowerText.includes('delete last note') || lowerText.includes('remove last note') ||
+      lowerText.includes('delete all notes') || lowerText.includes('clear all notes') ||
+      lowerText.includes('stop listening') || lowerText.includes('stop voice') || lowerText.includes('ನಿಲ್ಲಿಸು');
 
-      // Import dynamically to avoid loading the module on initial load
-      const { summarizeText } = await import('@/lib/summarize');
-      const summary = await summarizeText(currentText);
-
-      setCurrentText(summary);
-      toast({
-        title: 'Summary generated',
-        description: 'Your text has been summarized successfully!',
-      });
-    } catch (error) {
-      console.error('Summarization error:', error);
-      setSummaryError(error instanceof Error ? error.message : 'Failed to generate summary');
-      toast({
-        title: 'Error',
-        description: 'Failed to generate summary. Please try again.',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsSummarizing(false);
-    }
-  };
-
-  const handleSaveNote = async () => {
-    if (!currentText.trim()) return;
-
-    try {
-      await createNote.mutateAsync(currentText);
-      setCurrentText('');
-
-      toast({
-        title: 'Note saved',
-        description: 'Your note has been saved successfully.',
-      });
-    } catch (error) {
-      console.error('Error saving note:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to save note. Please try again.',
-        variant: 'destructive',
-      });
-    }
-  };
-
-  const downloadAsText = (note: Note) => {
-    const element = document.createElement('a');
-    const file = new Blob([note.text], { type: 'text/plain' });
-    element.href = URL.createObjectURL(file);
-    element.download = `note-${note.timestamp.toISOString().split('T')[0]}.txt`;
-    document.body.appendChild(element);
-    element.click();
-    document.body.removeChild(element);
-
-    toast({
-      title: "Note downloaded",
-      description: "Your note has been downloaded as a text file."
-    });
-  };
-
-  const downloadAsPDF = (note: Note) => {
-    const doc = new jsPDF();
-    const date = new Date(note.timestamp).toLocaleString();
-
-    // Add title
-    doc.setFontSize(18);
-    doc.text('Voice Note', 20, 20);
-
-    // Add date
-    doc.setFontSize(10);
-    doc.setTextColor(100);
-    doc.text(`Created: ${date}`, 20, 30);
-
-    // Add note content with word wrap + multi-page pagination
-    doc.setFontSize(12);
-    doc.setTextColor(0, 0, 0);
-
-    const leftMargin = 20;
-    const rightMargin = 20;
-    const topMargin = 45; // below title/date
-    const bottomMargin = 20;
-
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const pageHeight = doc.internal.pageSize.getHeight();
-    const usableWidth = pageWidth - leftMargin - rightMargin;
-    const usableHeight = pageHeight - topMargin - bottomMargin;
-
-    // Split into wrapped lines that fit the page width
-    const lines: string[] = doc.splitTextToSize(note.text, usableWidth);
-
-    // Estimate line height based on font size (jsPDF uses "points"; 1pt ~= 0.3528mm)
-    const fontSize = doc.getFontSize();
-    const lineHeight = (fontSize * 1.15) * 0.3528;
-
-    let y = topMargin;
-    const linesPerPage = Math.max(1, Math.floor(usableHeight / lineHeight));
-
-    for (let i = 0; i < lines.length; i += linesPerPage) {
-      if (i > 0) {
-        doc.addPage();
-        y = 20; // top margin for subsequent pages
-      }
-      const pageLines = lines.slice(i, i + linesPerPage);
-      doc.text(pageLines, leftMargin, y);
-    }
-
-    // Save the PDF
-    doc.save(`voice-note-${note.timestamp.toISOString().split('T')[0]}.pdf`);
-
-    toast({
-      title: "PDF Downloaded",
-      description: "Your note has been downloaded as a PDF file."
-    });
-  };
-
-  const handleDeleteNote = (id: number) => {
-    deleteNote.mutate(id, {
-      onSuccess: () => {
-        toast({
-          title: 'Note deleted',
-          description: 'The note has been deleted.',
-        });
-      },
-      onError: (error) => {
-        console.error('Error deleting note:', error);
-        toast({
-          title: 'Error',
-          description: 'Failed to delete note. Please try again.',
-          variant: 'destructive',
-        });
-      }
-    });
-  };
-
-  const handleClearAllNotes = () => {
-    if (notes.length === 0) return;
-
-    if (window.confirm('Are you sure you want to delete all notes? This action cannot be undone.')) {
-      deleteAllNotes.mutate(undefined, {
-        onSuccess: () => {
-          toast({
-            title: 'All notes deleted',
-            description: 'All your notes have been deleted.',
-          });
-        },
-        onError: (error) => {
-          console.error('Error deleting all notes:', error);
-          toast({
-            title: 'Error',
-            description: 'Failed to delete all notes. Please try again.',
-            variant: 'destructive',
-          });
-        }
-      });
-    }
-  };
-
-  const handleVoiceCommand = async (text: string) => {
-    const lowerText = text.toLowerCase();
-
-    // Common function to handle command response
-    const handleCommand = async (response: string, action?: () => void) => {
-      // Clear the current transcript first
+    if (isCommand) {
+      // Process command
       resetTranscript();
-      lastProcessedTranscript.current = '';
-
-      // Execute the action if provided
-      if (action) {
-        await new Promise<void>((resolve) => {
-          action();
-          // Small delay to ensure state updates
-          setTimeout(resolve, 100);
-        });
-      }
-
-      // Only speak if not already speaking
-      if (!isSpeaking) {
-        await new Promise<void>((resolve) => {
-          speakText(response);
-          // Prevent multiple speech triggers
-          setTimeout(resolve, 1000);
-        });
-      }
-    };
-
-    if (lowerText.includes('new note')) {
-      handleCommand("New note created", () => setCurrentText(''));
-    } else if (lowerText.includes('save note') || lowerText.includes('save this')) {
-      handleCommand("Note saved successfully", handleSaveNote);
-    } else if (lowerText.includes('clear text') || lowerText.includes('clear note')) {
-      handleCommand("Text cleared", () => setCurrentText(''));
-    } else if (lowerText.includes('read notes') || lowerText.includes('read my notes')) {
-      // Read notes command disabled - do nothing
-      console.log('Read notes command disabled');
-      return;
-    } else if (lowerText.includes('delete last note') || lowerText.includes('remove last note')) {
-      if (notes.length > 0) {
-        const deletedNote = notes[0];
-        handleCommand("Last note deleted", () => handleDeleteNote(deletedNote.id));
-      } else {
-        handleCommand("No notes to delete");
-      }
-    } else if (lowerText.includes('delete all notes') || lowerText.includes('clear all notes')) {
-      handleCommand("All notes have been deleted", handleClearAllNotes);
-    } else if (lowerText.includes('stop listening') || lowerText.includes('stop voice')) {
-      if (isListening) {
-        stopListening();
-        speakText("Stopped listening");
-      }
-    }
-  };
-
-  // Check for voice commands when transcript updates
-
-  useEffect(() => {
-    const processCommand = async () => {
-      if (!transcript || transcript === lastProcessedTranscript.current || isProcessing.current) {
-        return;
-      }
-
-      // Check if this is a command before processing
-      const lowerText = transcript.toLowerCase();
-      const isCommand =
-        lowerText.includes('new note') ||
-        lowerText.includes('save note') ||
-        lowerText.includes('save this') ||
-        lowerText.includes('clear text') ||
-        lowerText.includes('clear note') ||
-        lowerText.includes('read notes') ||
-        lowerText.includes('read my notes') ||
-        lowerText.includes('delete last note') ||
-        lowerText.includes('remove last note') ||
-        lowerText.includes('delete all notes') ||
-        lowerText.includes('clear all notes');
-
-      // Clear transcript immediately if it's a command
-      if (isCommand) {
-        resetTranscript();
-        lastProcessedTranscript.current = transcript;
-        // Still process the command to execute it
-        isProcessing.current = true;
+      lastProcessedTranscript.current = transcript;
+      isProcessing.current = true;
+      
+      const processCommand = async () => {
         try {
           await handleVoiceCommand(transcript);
         } finally {
@@ -388,23 +133,13 @@ const Index = () => {
             isProcessing.current = false;
           }, 1000);
         }
-        return;
-      }
-
-      isProcessing.current = true;
-      lastProcessedTranscript.current = transcript;
-
-      try {
-        await handleVoiceCommand(transcript);
-      } finally {
-        // Small delay to prevent rapid re-processing
-        setTimeout(() => {
-          isProcessing.current = false;
-        }, 1000);
-      }
-    };
-
-    processCommand();
+      };
+      
+      processCommand();
+    } else {
+      // Not a command, just transcribe the text
+      setCurrentText(transcript);
+    }
   }, [transcript, handleVoiceCommand]);
 
   if (!speechRecognitionSupported) {

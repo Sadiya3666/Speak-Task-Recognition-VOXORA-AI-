@@ -163,7 +163,8 @@ const useTextToSpeech = (options: UseTextToSpeechOptions = {}): UseTextToSpeechR
       v.name.toLowerCase().includes(langCode)
     );
     
-    return langMatch || voices[0] || null;
+    // Do NOT fall back to voices[0] (which is usually English), return null to trigger online TTS fallback
+    return langMatch || null;
   }, [voices]);
 
   const stop = useCallback(() => {

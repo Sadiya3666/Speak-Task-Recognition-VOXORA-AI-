@@ -333,33 +333,12 @@ const Index = () => {
       return;
     }
 
-    const commandType = getCommandType(transcript, language);
-
-    if (commandType) {
-      resetTranscript();
-      lastProcessedTranscript.current = transcript;
-      isProcessing.current = true;
-      
-      // Revert the text to remove the command phrase from the textarea
-      setCurrentText(textBeforeListening.current);
-      
-      const processCommand = async () => {
-        try {
-          await handleVoiceCommand(commandType);
-        } finally {
-          setTimeout(() => {
-            isProcessing.current = false;
-          }, 1000);
-        }
-      };
-      
-      processCommand();
-    } else {
-      // Append the transcript to what was there before we started listening
-      const separator = textBeforeListening.current && !textBeforeListening.current.endsWith(' ') ? ' ' : '';
-      setCurrentText(textBeforeListening.current + separator + transcript);
-    }
-  }, [transcript, language, handleVoiceCommand]);
+    lastProcessedTranscript.current = transcript;
+    
+    // Append the transcript to what was there before we started listening
+    const separator = textBeforeListening.current && !textBeforeListening.current.endsWith(' ') ? ' ' : '';
+    setCurrentText(textBeforeListening.current + separator + transcript);
+  }, [transcript]);
 
 
   if (!speechRecognitionSupported) {

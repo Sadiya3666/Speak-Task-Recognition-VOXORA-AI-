@@ -291,9 +291,7 @@ const useTextToSpeech = (options: UseTextToSpeechOptions = {}): UseTextToSpeechR
         utterance.voice = voice;
         console.log(`Using browser voice: ${voice.name} (${voice.lang}) for language: ${language}`);
       } else {
-        console.warn('No suitable browser voice found, trying online TTS');
-        speakWithResponsiveVoice(text, language).catch(console.error);
-        return;
+        console.warn(`No exact voice found in getVoices() for ${language}, relying on browser default for lang.`);
       }
     
       utterance.rate = 0.9;

@@ -134,6 +134,7 @@ export const useSpeechRecognition = (options: UseSpeechRecognitionOptions = {}):
       if (listeningRef.current || stopInProgressRef.current) return;
       // Reset the final buffer for a fresh session
       finalTranscriptRef.current = '';
+      setTranscript('');
       recognitionRef.current.start();
     } catch (e) {
       // Common browser error: "recognition has already started"
@@ -154,6 +155,7 @@ export const useSpeechRecognition = (options: UseSpeechRecognitionOptions = {}):
             if (listeningRef.current) return;
             stopInProgressRef.current = false;
             finalTranscriptRef.current = '';
+            setTranscript('');
             recognitionRef.current.start();
           } catch {
             // ignore

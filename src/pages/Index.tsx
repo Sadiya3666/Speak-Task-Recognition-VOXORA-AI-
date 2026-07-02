@@ -329,7 +329,12 @@ const Index = () => {
   };
 
   useEffect(() => {
-    if (!transcript || transcript === lastProcessedTranscript.current || isProcessing.current) {
+    if (!transcript) {
+      lastProcessedTranscript.current = '';
+      return;
+    }
+    
+    if (transcript === lastProcessedTranscript.current || isProcessing.current) {
       return;
     }
 
